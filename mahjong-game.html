@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mahjong Eşleştirme Oyunu</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a4d3e 0%, #2d7a5f 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            overflow-x: hidden;
+            touch-action: pan-y;
+        }
+
+        .game-header {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn-round {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+
+        .btn-round:active {
+            transform: scale(0.95);
+        }
+
+        .btn-back {
+            background: linear-gradient(135deg, #c4603d 0%, #8b3a22 100%);
+            color: white;
+        }
+
+        .btn-menu {
+            background: linear-gradient(135deg, #c4603d 0%, #8b3a22 100%);
+            color: white;
+        }
+
+        .score-display {
+            background: linear-gradient(135deg, #5a3825 0%, #3d2417 100%);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 24px;
+            font-weight: bold;
+            border: 3px solid #d4a574;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .slot-container {
+            width: 100%;
+            max-width: 500px;
+            background: linear-gradient(135deg, #5a3825 0%, #3d2417 100%);
+            border: 3px solid #d4a574;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            min-height: 70px;
+        }
+
+        .slot {
+            aspect-ratio: 1;
+            background: rgba(139, 92, 60, 0.3);
+            border-radius: 8px;
+            border: 2px dashed rgba(212, 165, 116, 0.5);
+        }
+
+        .slot.filled {
+            background: white;
+            border: 2px solid #d4a574;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: slotFill 0.3s ease;
+        }
+
+        @keyframes slotFill {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .game-board {
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+            margin-bottom: 20px;
+            padding: 20px 10px;
+        }
+
+        .tile-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            perspective: 1000px;
+        }
+
+        .tile {
+            aspect-ratio: 0.75;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,0.5);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            user-select: none;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .tile::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.3), transparent);
+            border-radius: 8px;
+            pointer-events: none;
+        }
+
+        .tile.blocked {
+            background: linear-gradient(135deg, #2d9b7a 0%, #1a5f4a 100%);
+            cursor: not-allowed;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .tile.blocked::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .tile:not(.blocked):active {
+            transform: scale(0.95) translateY(2px);
+        }
+
+        .tile.selected {
+            border-color: #ff6b35;
+            box-shadow: 0 0 0 3px #ff6b35, 0 6px 12px rgba(255,107,53,0.4);
+            transform: translateY(-5px);
+        }
+
+        .tile.matched {
+            animation: matchAnimation 0.5s ease forwards;
+        }
+
+        @keyframes matchAnimation {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2) rotate(10deg); opacity: 0.7; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        .tile.hint {
+            animation: hintPulse 1s ease-in-out 3;
+        }
+
+        @keyframes hintPulse {
+            0%, 100% { box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+            50% { box-shadow: 0 0 0 4px #ffd700, 0 8px 16px rgba(255,215,0,0.6); }
+        }
+
+        .controls {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 10px;
+        }
+
+        .control-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            position: relative;
+            background: linear-gradient(135deg, #c4603d 0%, #8b3a22 100%);
+            color: white;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95) translateY(2px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+        }
+
+        .control-btn .count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff4444;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .game-over.active {
+            display: flex;
+        }
+
+        .game-over-content {
+            background: linear-gradient(135deg, #2d7a5f 0%, #1a4d3e 100%);
+            padding: 40px 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 90%;
+            border: 4px solid #d4a574;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: popIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .game-over-content h2 {
+            color: #ffd700;
+            font-size: 36px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .game-over-content p {
+            color: white;
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+
+        .restart-btn {
+            background: linear-gradient(135deg, #c4603d 0%, #8b3a22 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        .restart-btn:active {
+            transform: scale(0.95);
+        }
+
+        @media (max-width: 400px) {
+            .tile {
+                font-size: 22px;
+            }
+            
+            .control-btn {
+                width: 60px;
+                height: 60px;
+                font-size: 24px;
+            }
+            
+            .score-display {
+                font-size: 20px;
+                padding: 10px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-header">
+        <button class="btn-round btn-back" onclick="goBack()">←</button>
+        <div class="score-display" id="score">0</div>
+        <button class="btn-round btn-menu" onclick="showMenu()">≡</button>
+    </div>
+
+    <div class="slot-container" id="slotContainer"></div>
+
+    <div class="game-board">
+        <div class="tile-grid" id="tileGrid"></div>
+    </div>
+
+    <div class="controls">
+        <button class="control-btn" onclick="shuffle()">
+            🔀
+            <span class="count" id="shuffleCount">3</span>
+        </button>
+        <button class="control-btn" onclick="hint()">
+            💡
+            <span class="count" id="hintCount">2</span>
+        </button>
+        <button class="control-btn" onclick="undo()">
+            ↶
+            <span class="count" id="undoCount">∞</span>
+        </button>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <div class="game-over-content">
+            <h2 id="gameOverTitle">🎉 Tebrikler!</h2>
+            <p id="gameOverMessage">Skoru: 0</p>
+            <button class="restart-btn" onclick="restartGame()">Yeniden Başla</button>
+        </div>
+    </div>
+
+    <div class="game-over" id="menuModal">
+        <div class="game-over-content" style="text-align: left; padding: 30px;">
+            <h2 style="margin-bottom: 30px; text-align: center; color: #ffd700;">📋 Menü</h2>
+            <div style="color: white; font-size: 18px; line-height: 2;">
+                <p><strong>🎮 Oyun Nasıl Oynanır?</strong></p>
+                <p style="font-size: 16px; margin-bottom: 15px;">Kartları seç ve üst bardaki slotlara yerleştir. Aynı 3 sembol yan yana geldiğinde otomatik silinir.</p>
+                
+                <p><strong>🛠️ Kontroller</strong></p>
+                <p style="font-size: 16px; margin-bottom: 15px;">
+                    🔀 <strong>Karıştır:</strong> Kartları yeniden düzenle (3 kez)<br>
+                    💡 <strong>İpucu:</strong> Eşleşen iki kartı göster (2 kez)<br>
+                    ↶ <strong>Geri Al:</strong> Son hareketi geri al (sınırsız)
+                </p>
+                
+                <p><strong>⭐ Hedef</strong></p>
+                <p style="font-size: 16px; margin-bottom: 20px;">Tüm kartları eşleştirerek oyunu bitirebileceğiniz bir duruma getir!</p>
+            </div>
+            <button class="restart-btn" onclick="closeMenu()" style="width: 100%; margin-top: 20px;">Kapat</button>
+        </div>
+    </div>
+
+    <script>
+        const tiles = [
+            '🐔', '🐓', '🐔', '🐓', '🐔', '🐓',
+            '🐰', '🐇', '🐰', '🐇', '🐰', '🐇',
+            '🐘', '🦏', '🐘', '🦏', '🐘', '🦏',
+            '🐟', '🐠', '🐟', '🐠', '🐟', '🐠',
+            '🦆', '🐦', '🦆', '🐦', '🦆', '🐦',
+            '🎯', '🛡️', '🎯', '🛡️', '🎯', '🛡️',
+            '🌺', '🌸', '🌺', '🌸', '🌺', '🌸',
+            '🎲', '🎭', '🎲', '🎭', '🎲', '🎭'
+        ];
+
+        let gameState = {
+            score: 0,
+            selectedTiles: [],
+            slotTiles: [],
+            shuffleCount: 3,
+            hintCount: 2,
+            undoStack: [],
+            boardTiles: []
+        };
+
+        const tileGrid = document.getElementById('tileGrid');
+        const slotContainer = document.getElementById('slotContainer');
+        const scoreDisplay = document.getElementById('score');
+
+        function initGame() {
+            gameState.score = 0;
+            gameState.selectedTiles = [];
+            gameState.slotTiles = [];
+            gameState.shuffleCount = 3;
+            gameState.hintCount = 2;
+            gameState.undoStack = [];
+            
+            updateScore();
+            updateCounts();
+            createSlots();
+            createBoard();
+        }
+
+        function createSlots() {
+            slotContainer.innerHTML = '';
+            for (let i = 0; i < 7; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'slot';
+                slot.id = `slot-${i}`;
+                slotContainer.appendChild(slot);
+            }
+        }
+
+        function createBoard() {
+            const shuffledTiles = [...tiles].sort(() => Math.random() - 0.5);
+            gameState.boardTiles = shuffledTiles;
+            
+            tileGrid.innerHTML = '';
+            
+            // 8x6 grid with some blocked tiles
+            const layout = [
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1],
+                [1,1,1,1,1,1,1,1]
+            ];
+
+            let tileIndex = 0;
+            for (let row = 0; row < 6; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    tile.dataset.row = row;
+                    tile.dataset.col = col;
+                    
+                    if (layout[row][col] === 1 && tileIndex < shuffledTiles.length) {
+                        tile.textContent = shuffledTiles[tileIndex];
+                        tile.dataset.type = shuffledTiles[tileIndex];
+                        tile.dataset.index = tileIndex;
+                        tile.onclick = () => selectTile(tile);
+                        tileIndex++;
+                    } else {
+                        tile.classList.add('blocked');
+                    }
+                    
+                    tileGrid.appendChild(tile);
+                }
+            }
+        }
+
+        function selectTile(tile) {
+            if (tile.classList.contains('blocked') || tile.classList.contains('matched')) {
+                return;
+            }
+
+            // Save state for undo
+            saveState();
+
+            tile.classList.add('selected');
+            gameState.selectedTiles.push(tile);
+
+            // Add to slot
+            addToSlot(tile.dataset.type);
+
+            // Remove from board
+            setTimeout(() => {
+                tile.classList.add('matched');
+                tile.classList.remove('selected');
+            }, 200);
+
+            checkMatches();
+        }
+
+        function addToSlot(tileType) {
+            gameState.slotTiles.push(tileType);
+            updateSlots();
+        }
+
+        function updateSlots() {
+            const slots = document.querySelectorAll('.slot');
+            
+            gameState.slotTiles.forEach((tileType, index) => {
+                if (slots[index]) {
+                    slots[index].className = 'slot filled';
+                    slots[index].textContent = tileType;
+                }
+            });
+
+            for (let i = gameState.slotTiles.length; i < 7; i++) {
+                if (slots[i]) {
+                    slots[i].className = 'slot';
+                    slots[i].textContent = '';
+                }
+            }
+
+            if (gameState.slotTiles.length >= 7) {
+                setTimeout(gameOver, 500);
+            }
+        }
+
+        function checkMatches() {
+            const counts = {};
+            gameState.slotTiles.forEach(tile => {
+                counts[tile] = (counts[tile] || 0) + 1;
+            });
+
+            let removed = false;
+            for (let tile in counts) {
+                if (counts[tile] >= 3) {
+                    removeMatches(tile);
+                    removed = true;
+                    gameState.score += 10;
+                    updateScore();
+                }
+            }
+
+            if (removed) {
+                // Ardışık eşleşmeleri kontrol et
+                setTimeout(() => checkMatches(), 100);
+            } else {
+                checkGameState();
+            }
+        }
+
+        function removeMatches(tileType) {
+            const newSlotTiles = [];
+            let removeCount = 3;
+
+            for (let tile of gameState.slotTiles) {
+                if (tile === tileType && removeCount > 0) {
+                    removeCount--;
+                } else {
+                    newSlotTiles.push(tile);
+                }
+            }
+
+            gameState.slotTiles = newSlotTiles;
+            updateSlots();
+        }
+
+        function checkGameState() {
+            const remainingTiles = document.querySelectorAll('.tile:not(.blocked):not(.matched)');
+            
+            if (remainingTiles.length === 0) {
+                setTimeout(() => {
+                    document.getElementById('gameOverTitle').textContent = '🎉 Kazandınız!';
+                    document.getElementById('gameOverMessage').textContent = `Harika! Skor: ${gameState.score}`;
+                    document.getElementById('gameOver').classList.add('active');
+                }, 500);
+            }
+        }
+
+        function shuffle() {
+            if (gameState.shuffleCount <= 0) return;
+            
+            gameState.shuffleCount--;
+            updateCounts();
+            
+            const remainingTiles = Array.from(document.querySelectorAll('.tile:not(.blocked):not(.matched)'));
+            const types = remainingTiles.map(t => t.dataset.type);
+            types.sort(() => Math.random() - 0.5);
+            
+            remainingTiles.forEach((tile, index) => {
+                tile.textContent = types[index];
+                tile.dataset.type = types[index];
+            });
+        }
+
+        function hint() {
+            if (gameState.hintCount <= 0) return;
+            
+            gameState.hintCount--;
+            updateCounts();
+            
+            const tiles = Array.from(document.querySelectorAll('.tile:not(.blocked):not(.matched)'));
+            const types = {};
+            
+            tiles.forEach(tile => {
+                const type = tile.dataset.type;
+                if (!types[type]) types[type] = [];
+                types[type].push(tile);
+            });
+            
+            for (let type in types) {
+                if (types[type].length >= 2) {
+                    types[type][0].classList.add('hint');
+                    types[type][1].classList.add('hint');
+                    
+                    setTimeout(() => {
+                        types[type][0].classList.remove('hint');
+                        types[type][1].classList.remove('hint');
+                    }, 3000);
+                    break;
+                }
+            }
+        }
+
+        function saveState() {
+            gameState.undoStack.push({
+                slotTiles: [...gameState.slotTiles],
+                boardState: Array.from(document.querySelectorAll('.tile')).map(t => ({
+                    type: t.dataset.type,
+                    matched: t.classList.contains('matched'),
+                    text: t.textContent
+                })),
+                score: gameState.score
+            });
+        }
+
+        function undo() {
+            if (gameState.undoStack.length === 0) return;
+            
+            const lastState = gameState.undoStack.pop();
+            gameState.slotTiles = lastState.slotTiles;
+            gameState.score = lastState.score;
+            
+            const tiles = document.querySelectorAll('.tile');
+            tiles.forEach((tile, index) => {
+                tile.textContent = lastState.boardState[index].text;
+                tile.dataset.type = lastState.boardState[index].type;
+                
+                if (lastState.boardState[index].matched) {
+                    tile.classList.add('matched');
+                } else {
+                    tile.classList.remove('matched', 'selected');
+                }
+            });
+            
+            updateSlots();
+            updateScore();
+        }
+
+        function updateScore() {
+            scoreDisplay.textContent = gameState.score;
+        }
+
+        function updateCounts() {
+            document.getElementById('shuffleCount').textContent = gameState.shuffleCount;
+            document.getElementById('hintCount').textContent = gameState.hintCount;
+        }
+
+        function gameOver() {
+            document.getElementById('gameOverTitle').textContent = '😔 Oyun Bitti';
+            document.getElementById('gameOverMessage').textContent = `Skor: ${gameState.score}`;
+            document.getElementById('gameOver').classList.add('active');
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').classList.remove('active');
+            initGame();
+        }
+
+        function goBack() {
+            if (confirm('Oyundan çıkmak istediğinizden emin misiniz?')) {
+                window.history.back();
+            }
+        }
+
+        function showMenu() {
+            document.getElementById('menuModal').classList.add('active');
+        }
+
+        function closeMenu() {
+            document.getElementById('menuModal').classList.remove('active');
+        }
+
+        // Initialize game
+        initGame();
+    </script>
+</body>
+</html>
